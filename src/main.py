@@ -10,6 +10,11 @@
 # https://www.kaggle.com/code/harshjain123/bert-for-everyone-tutorial-implementation
 # https://colab.research.google.com/github/NielsRogge/Transformers-Tutorials/blob/master/BERT/Fine_tuning_BERT_(and_friends)_for_multi_label_text_classification.ipynb
 
+# to make that annoying big "oneDNN custom operations are on. You may see slightly different numerical results"
+# message that comes up at runtime go away
+import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
 import numpy as np
 import csv
 import evaluate
@@ -32,8 +37,8 @@ tf.get_logger().setLevel('ERROR')
 
 
 def split_data(combined, keyword, random):
-    with open(combined, 'r', newline='') as combinedcsv, open(keyword, 'w+', newline='') as train, open(random, 'w+',
-                                                                                                        newline='') as test:
+    with open(combined, 'r', newline='', encoding="utf-8") as combinedcsv, open(keyword, 'w+', newline='', encoding="utf-8") as train, open(random, 'w+',
+                                                                                                        newline='', encoding="utf-8") as test:
         reader = csv.reader(combinedcsv)
         train_writer = csv.writer(train)
         test_writer = csv.writer(test)
@@ -52,7 +57,7 @@ def split_data(combined, keyword, random):
 
 
 def preprocess(data):
-    labels = ClassLabel(names_file='../data/labels.txt')
+    labels = ClassLabel(names_file='data/labels.txt')
     tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
     tok = tokenizer(data['text'], padding='max_length')
     tok["label"] = labels.str2int(data['label'])
@@ -61,18 +66,23 @@ def preprocess(data):
 
 def compute_metrics(eval_pred):
     accuracy = evaluate.load("accuracy")
-    logits, labels = eval_pred
-    predictions = np.argmax(logits, axis=-1)
-    return accuracy.compute(predictions=predictions, references=labels)
+    precision = evaluate.load("precision")
+    recall = evaluate.load("recall")
+    f1_score = evaluate.load("f1")
+    # logits, labels = eval_pred
+    logits = eval_pred[0]
+    labels = eval_pred[1]
+    preds = np.argmax(logits, axis=-1)
+    return accuracy.compute(predictions=preds, references=labels) | precision.compute(predictions=preds, references=labels, average="micro") | recall.compute(predictions=preds, references=labels, average="micro") | f1_score.compute(predictions=preds, references=labels, average="micro")
 
 
-def main():
-    bragging_data = '../data/bragging_data.csv'
-    train = '../data/train.csv'
-    test = '../data/test.csv'
+if __name__=="__main__":
+    bragging_data = 'data/bragging_data.csv'
+    train = 'data/train.csv'
+    test = 'data/test.csv'
 
     #    uncomment this to split data from original bragging_data.csv
-    #    split_data(bragging_data, train, test)
+    # split_data(bragging_data, train, test)
 
     dataset = load_dataset("csv", data_files={"train": [train], "test": [test]})
     labels = [label for label in dataset['train'].features.keys() if label not in ['text']]
@@ -94,9 +104,10 @@ def main():
     trainer.train()
 
     # TODO: evaluate
-    # predictions = trainer.predict(enc_data["test"])
-    # preds = compute_metrics(predictions)
+    predictions = trainer.predict(enc_data["test"])
+    preds = compute_metrics(predictions)
     # metric = evaluate.load()
+    print(preds)
 
 
-main()
+    pass
