@@ -1,0 +1,7 @@
+achievement
+action
+feeling
+trait
+possession
+affiliation
+not
