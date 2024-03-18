@@ -73,7 +73,7 @@ def compute_metrics(eval_pred):
     logits = eval_pred[0]
     labels = eval_pred[1]
     preds = np.argmax(logits, axis=-1)
-    return accuracy.compute(predictions=preds, references=labels) | precision.compute(predictions=preds, references=labels, average="micro") | recall.compute(predictions=preds, references=labels, average="micro") | f1_score.compute(predictions=preds, references=labels, average="micro")
+    return accuracy.compute(predictions=preds, references=labels) | precision.compute(predictions=preds, references=labels, average="macro") | recall.compute(predictions=preds, references=labels, average="macro") | f1_score.compute(predictions=preds, references=labels, average="macro")
 
 
 if __name__=="__main__":
