@@ -1,3 +1,7 @@
+#other implementation im working on, could be faster 
+
+
+
 # NLP project
 # Detecting Bragging - Jin et al.
 # Clare Treutel, Duncan Collins, Ryan Connolly
@@ -19,6 +23,9 @@ import numpy as np
 import csv
 import evaluate
 import tensorflow as tf
+import torch.nn as nn
+import torch.optim as optim
+
 from datasets import load_dataset
 from datasets import ClassLabel
 from transformers import AutoTokenizer
@@ -89,6 +96,7 @@ if __name__=="__main__":
     batch_size = 8
     learning_rate = .1
     num_epochs = 20
+    num_workers = 4
 
     #    uncomment this to split data from original bragging_data.csv
     # split_data(bragging_data, train, test)
@@ -97,37 +105,34 @@ if __name__=="__main__":
     id2label = {idx: label for idx, label in enumerate(labels)}
     label2id = {label: idx for idx, label in enumerate(labels)}
 
+    train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    test_loader = DataLoader(dataset["test"], batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
     model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=7).to('cuda')
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
-
-    print(dataset)
-
-    training_args = TrainingArguments(
-        output_dir="test_trainer", 
-        evaluation_strategy="epoch", 
-        per_device_train_batch_size=batch_size, 
-        fp16=True, 
-        gradient_accumulation_steps=12
-    )
-    
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["test"],
-        compute_metrics=compute_metrics,
-        optimizers=(optimizer, scheduler)
-    )
-
-    trainer.train()
-    
-    # TODO: evaluate
-    predictions = trainer.predict(dataset["test"])
-    preds = compute_metrics(predictions)
-    # metric = evaluate.load()
-    print(preds)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    criterion = nn.CrossEntropyLoss()
 
 
-    pass
+    for epoch in range(num_epochs): 
+        model.train()
+        for batch in train_loader: 
+            optimizer.zero_grad()
+            inputs, labels = torch.tensor(batch['text']).to('cuda'), torch.tensor(batch['labels']).to('cuda')
+            outputs = model(**inputs)
+            loss = criterion(outputs.logits, inputs['labels'].to('cuda'))
+            loss.backward()
+            optimizer.step()
+
+        model.eval()
+        with torch.no_grad(): 
+            total_correct = 0 
+            total_samples = 0
+            for batch in test_loader: 
+                inputs, labels = torch.tensor(batch['text']).to('cuda'), torch.tensor(batch['labels']).to('cuda')
+                outputs = model(**inputs)
+                _, predicted = torch.max(outputs.logits, 1)
+                total_correct += (predicted == inputs['labels'].to('cuda')).sum().item()
+                total_samples += inputs['labels'].size(0)
+            accuracy = total_correct / total_samples
+            print(f"Epoch [{epoch+1}/{num_epochs}], Test Accuracy: {accuracy:.4f}")

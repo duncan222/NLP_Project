@@ -1,0 +1,31 @@
+    
+    
+    other implementation I was working on that I would like to test out. 
+    
+    train_loader = DataLoader(dataset["train"], batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    test_loader = DataLoader(dataset["test"], batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    
+    
+    for epoch in range(num_epochs): 
+        model.train()
+        for batch in train_loader: 
+            optimizer.zero_grad()
+            inputs = {k: v.to('cuda') for k, v in batch.items()}
+            outputs = model(**inputs)
+            loss = criterion(outputs.logits, inputs['labels'].to('cuda'))
+            loss.backward()
+            optimizer.step()
+
+        model.eval()
+        with torch.no_grad(): 
+            total_correct = 0 
+            total_samples = 0
+            for batch in test_loader: 
+                inputs = {k: v.to('cuda') for k, v in batch.items()}
+                outputs = model(**inputs)
+                _, predicted = torch.max(outputs.logits, 1)
+                total_correct += (predicted == inputs['labels'].to('cuda')).sum().item()
+                total_samples += inputs['labels'].size(0)
+            accuracy = total_correct / total_samples
+            print(f"Epoch [{epoch+1}/{num_epochs}], Test Accuracy: {accuracy:.4f}")
+
