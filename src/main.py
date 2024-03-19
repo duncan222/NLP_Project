@@ -2,7 +2,7 @@
 # Detecting Bragging - Jin et al.
 # Clare Treutel, Duncan Collins, Ryan Connolly
 # Created: 3/15/24
-# Updated: 3/18/24
+# Updated: 3/10/24
 
 # used some template text from the tutorials on these blogs:
 # https://huggingface.co/learn/nlp-course/en/chapter3/3
@@ -65,6 +65,9 @@ def split_data(combined, keyword, random):
                 test_writer.writerow(row[n] for n in cols)
 
 
+# computes baseline metrics by assigning most frequent class to all predictions
+# input: pandas df of test data
+# output: accuracy, precision, recall metrics
 def get_baseline(test_df):
     X = test_df['text']
     Y = test_df['label']
@@ -125,6 +128,7 @@ if __name__ == "__main__":
     baseline_metrics = get_baseline(pd.read_csv(test))
     print("Baseline Metrics (majority class): " + baseline_metrics)
 
+    # This code is for generating the bar plots of label frequency (see images file)
     # train_label_counts = Counter(example['label'] for example in dataset['train'])
     # test_label_counts = Counter(example['label'] for example in dataset['test'])
     # This code makes bar plots of label frequencies in a dataset
