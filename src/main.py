@@ -2,7 +2,7 @@
 # Detecting Bragging - Jin et al.
 # Clare Treutel, Duncan Collins, Ryan Connolly
 # Created: 3/15/24
-# Updated: 3/10/24
+# Updated: 4/13/24
 
 # used some template text from the tutorials on these blogs:
 # https://huggingface.co/learn/nlp-course/en/chapter3/3
@@ -42,12 +42,14 @@ import time
 tf.get_logger().setLevel('ERROR')
 
 @jit(nopython=True)
-# Split original bragging.csv file into test and train files
-# keyword-sampled tweets for training, random-sampled for test
-# remove non-essential columns, leave only text and label.
-# input: file paths for combined, test and train data files
-# output: n/a (creates test and train files)
 def split_data(combined, keyword, random):
+    """
+    Split original bragging.csv file into test and train files
+    keyword-sampled tweets for training, random-sampled for test
+    remove non-essential columns, leave only text and label.
+    input: file paths for combined, test and train data files
+    output: n/a (creates test and train files)
+    """
     with open(combined, 'r', newline='', encoding="utf-8") as combinedcsv, open(keyword, 'w+', newline='',
                                                                                 encoding="utf-8") as train, open(random,
                                                                                                                  'w+',
@@ -71,10 +73,12 @@ def split_data(combined, keyword, random):
                 test_writer.writerow(row[n] for n in cols)
 
 
-# computes baseline metrics by assigning most frequent class to all predictions
-# input: pandas df of test data
-# output: accuracy, precision, recall metrics
 def get_baseline(test_df):
+    """
+    computes baseline metrics by assigning most frequent class to all predictions
+    input: pandas df of test data
+    output: accuracy, precision, recall metrics
+    """
     X = test_df['text']
     Y = test_df['label']
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
@@ -88,10 +92,12 @@ def get_baseline(test_df):
     return {'Accuracy': accuracy, 'Precision': precision, 'Recall': recall}
 
 
-# Tokenize for BERT and convert str labels to ints
-# input: batches of data from dataset
-# output: batch of encoded dataset info
 def preprocess(data):
+    """
+    Tokenize for BERT and convert str labels to ints
+    input: batches of data from dataset
+    output: batch of encoded dataset info
+    """
     labels = ClassLabel(names_file = 'data/labels.txt' if os.name == "nt" else "../data/labels.txt")
     tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
     tok = tokenizer(data['text'], padding='max_length')
@@ -99,10 +105,12 @@ def preprocess(data):
     return tok
 
 
-# Computes metrics for model performance
-# input: prediction/metrics object from trainer
-# output: computed predictions
 def compute_metrics(eval_pred):
+    """
+    Computes metrics for model performance
+    input: prediction/metrics object from trainer
+    output: computed predictions
+    """
     accuracy = evaluate.load("accuracy")
     precision = evaluate.load("precision")
     recall = evaluate.load("recall")
