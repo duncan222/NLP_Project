@@ -2,7 +2,7 @@
 # Detecting Bragging - Jin et al.
 # Clare Treutel, Duncan Collins, Ryan Connolly
 # Created: 3/15/24
-# Updated: 3/10/24
+# Updated: 4/13/24
 
 # used some template text from the tutorials on these blogs:
 # https://huggingface.co/learn/nlp-course/en/chapter3/3
@@ -77,11 +77,11 @@ def get_baseline(test_df):
     computes baseline metrics by assigning most frequent class to all predictions
     
     Input
-    -------------------------- 
+    -----------------------------
     pandas df of test data
     
-    Output 
-    -------------------------- 
+    Output
+    -----------------------------
     accuracy, precision, recall metrics
     """
 
@@ -93,7 +93,7 @@ def get_baseline(test_df):
     dummy_classifier.fit(X_train, y_train)
     y_pred = dummy_classifier.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred, average='weighted')
+    precision = precision_score(y_test, y_pred, average='weighted', zero_division=0.0)
     recall = recall_score(y_test, y_pred, average='weighted')
     return {'Accuracy': accuracy, 'Precision': precision, 'Recall': recall}
 
@@ -123,14 +123,14 @@ def compute_metrics(eval_pred):
     Computes metrics for model performance
 
     Input
-    ----------------------------
+    -----------------------------
     prediction/metrics object from trainer
     
     Output
-    ----------------------------
+    -----------------------------
     computed predictions
     """
-    
+
     accuracy = evaluate.load("accuracy")
     precision = evaluate.load("precision")
     recall = evaluate.load("recall")
@@ -141,33 +141,30 @@ def compute_metrics(eval_pred):
     preds = np.argmax(logits, axis=-1)
     return accuracy.compute(predictions=preds, references=labels) | precision.compute(predictions=preds,
                                                                                       references=labels,
-                                                                                      average="macro") | recall.compute(
+                                                                                      average="macro", zero_division=0.0) | recall.compute(
         predictions=preds, references=labels, average="macro") | f1_score.compute(predictions=preds, references=labels,
                                                                                   average="macro")
 
 
 if __name__ == "__main__":
-    bragging_data = '../data/bragging_data.csv'
-    labelfile = '../data/labels_binary.txt'
-    train = '../data/train_binary.csv'
-    test = '../data/test_binary.csv'
-    num = 2
+    bragging_data = 'data/bragging_data.csv' if os.name == "nt" else "../data/bragging_data.csv"
+    train = 'data/train.csv' if os.name == "nt" else "../data/train.csv"
+    test = 'data/test.csv' if os.name == "nt" else "..data/test.csv"
 
     batch_size = 10
     learning_rate = .001
-    num_epochs = 1
+    num_epochs = 20
 
     # uncomment this to split data from original bragging_data.csv
     # split_data(bragging_data, train, test)
 
-
-    dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(lambda example: preprocess(example, labelfile), batched=True)
-    model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=num).to("cuda")
+    dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(preprocess, batched=True)
+    model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=7).to("cuda")
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
 
     baseline_metrics = get_baseline(pd.read_csv(test))
-    print("Baseline Metrics (majority class): " + str(baseline_metrics))
+    print("\nBaseline Metrics (majority class): \n" + str(baseline_metrics) + "\n")
 
     # This code is for generating the bar plots of label frequency (see images file)
     # train_label_counts = Counter(example['label'] for example in dataset['train'])
@@ -200,12 +197,13 @@ if __name__ == "__main__":
         optimizers=(optimizer, scheduler)
     )
 
+    print("\n====================== TRAINING ======================\n")
     trainer.train()
     
+    print("\n===================== PREDICTING =====================\n")
     predictions = trainer.predict(dataset["test"])
     preds = compute_metrics(predictions)
     # metric = evaluate.load()
-    print(preds)
-    print()
+    print("\nFinal predictions: \n" + str(preds) + "\n")
 
     pass
