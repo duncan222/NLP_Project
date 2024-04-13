@@ -92,7 +92,7 @@ def get_baseline(test_df):
 # input: batches of data from dataset
 # output: batch of encoded dataset info
 def preprocess(data):
-    labels = ClassLabel(names_file='data/labels.txt')
+    labels = ClassLabel(names_file = 'data/labels.txt' if os.name == "nt" else "../data/labels.txt")
     tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
     tok = tokenizer(data['text'], padding='max_length')
     tok["label"] = labels.str2int(data['label'])
@@ -113,15 +113,15 @@ def compute_metrics(eval_pred):
     preds = np.argmax(logits, axis=-1)
     return accuracy.compute(predictions=preds, references=labels) | precision.compute(predictions=preds,
                                                                                       references=labels,
-                                                                                      average="macro") | recall.compute(
+                                                                                      average="macro", zero_division=0.0) | recall.compute(
         predictions=preds, references=labels, average="macro") | f1_score.compute(predictions=preds, references=labels,
                                                                                   average="macro")
 
 
 if __name__ == "__main__":
-    bragging_data = 'data/bragging_data.csv'
-    train = 'data/train.csv'
-    test = 'data/test.csv'
+    bragging_data = 'data/bragging_data.csv' if os.name == "nt" else "../data/bragging_data.csv"
+    train = 'data/train.csv' if os.name == "nt" else "../data/train.csv"
+    test = 'data/test.csv' if os.name == "nt" else "..data/test.csv"
 
     batch_size = 8
     learning_rate = .1
