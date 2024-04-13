@@ -76,9 +76,16 @@ def split_data(combined, keyword, random):
 def get_baseline(test_df):
     """
     computes baseline metrics by assigning most frequent class to all predictions
-    input: pandas df of test data
-    output: accuracy, precision, recall metrics
+    
+    Input
+    -----------------------------
+    pandas df of test data
+    
+    Output
+    -----------------------------
+    accuracy, precision, recall metrics
     """
+
     X = test_df['text']
     Y = test_df['label']
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
@@ -87,7 +94,7 @@ def get_baseline(test_df):
     dummy_classifier.fit(X_train, y_train)
     y_pred = dummy_classifier.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred, average='weighted')
+    precision = precision_score(y_test, y_pred, average='weighted', zero_division=0.0)
     recall = recall_score(y_test, y_pred, average='weighted')
     return {'Accuracy': accuracy, 'Precision': precision, 'Recall': recall}
 
@@ -95,9 +102,16 @@ def get_baseline(test_df):
 def preprocess(data):
     """
     Tokenize for BERT and convert str labels to ints
-    input: batches of data from dataset
-    output: batch of encoded dataset info
+
+    Input
+    -----------------------------
+    batches of data from dataset
+    
+    Output
+    -----------------------------
+    batch of encoded dataset info
     """
+
     labels = ClassLabel(names_file = 'data/labels.txt' if os.name == "nt" else "../data/labels.txt")
     tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
     tok = tokenizer(data['text'], padding='max_length')
@@ -108,9 +122,16 @@ def preprocess(data):
 def compute_metrics(eval_pred):
     """
     Computes metrics for model performance
-    input: prediction/metrics object from trainer
-    output: computed predictions
+
+    Input
+    -----------------------------
+    prediction/metrics object from trainer
+    
+    Output
+    -----------------------------
+    computed predictions
     """
+
     accuracy = evaluate.load("accuracy")
     precision = evaluate.load("precision")
     recall = evaluate.load("recall")
@@ -132,7 +153,7 @@ if __name__ == "__main__":
     test = 'data/test.csv' if os.name == "nt" else "..data/test.csv"
 
     batch_size = 8
-    learning_rate = .1
+    learning_rate = .001
     num_epochs = 20
 
     # uncomment this to split data from original bragging_data.csv
@@ -144,7 +165,7 @@ if __name__ == "__main__":
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
 
     baseline_metrics = get_baseline(pd.read_csv(test))
-    print("Baseline Metrics (majority class): " + str(baseline_metrics))
+    print("\nBaseline Metrics (majority class): \n" + str(baseline_metrics) + "\n")
 
     # This code is for generating the bar plots of label frequency (see images file)
     # train_label_counts = Counter(example['label'] for example in dataset['train'])
@@ -177,11 +198,13 @@ if __name__ == "__main__":
         optimizers=(optimizer, scheduler)
     )
 
+    print("\n====================== TRAINING ======================\n")
     trainer.train()
     
+    print("\n===================== PREDICTING =====================\n")
     predictions = trainer.predict(dataset["test"])
     preds = compute_metrics(predictions)
     # metric = evaluate.load()
-    print(preds)
+    print("\nFinal predictions: \n" + str(preds) + "\n")
 
     pass
