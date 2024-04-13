@@ -133,7 +133,7 @@ if __name__ == "__main__":
     # split_data(bragging_data, train, test)
 
     dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(lambda example: preprocess(example, labelfile), batched=True)
-    model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num).to("cuda")
+    model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=num).to("cuda")
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
 
