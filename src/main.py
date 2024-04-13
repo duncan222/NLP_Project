@@ -152,7 +152,7 @@ if __name__ == "__main__":
     train = 'data/train.csv' if os.name == "nt" else "../data/train.csv"
     test = 'data/test.csv' if os.name == "nt" else "..data/test.csv"
 
-    batch_size = 8
+    batch_size = 10
     learning_rate = .001
     num_epochs = 20
 
