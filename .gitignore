@@ -2,3 +2,5 @@
 /src/test_trainer
 /.vs
 /.env/
+/.venv
+/test_trainer
