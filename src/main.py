@@ -92,7 +92,7 @@ def get_baseline(test_df):
 # input: batches of data from dataset
 # output: batch of encoded dataset info
 def preprocess(data):
-    labels = ClassLabel(names_file='../data/labels.txt')
+    labels = ClassLabel(names_file='data/labels.txt')
     tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
     tok = tokenizer(data['text'], padding='max_length')
     tok["label"] = labels.str2int(data['label'])
@@ -119,9 +119,9 @@ def compute_metrics(eval_pred):
 
 
 if __name__ == "__main__":
-    bragging_data = '../data/bragging_data.csv'
-    train = '../data/train.csv'
-    test = '../data/test.csv'
+    bragging_data = 'data/bragging_data.csv'
+    train = 'data/train.csv'
+    test = 'data/test.csv'
 
     batch_size = 8
     learning_rate = .1
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
 
     baseline_metrics = get_baseline(pd.read_csv(test))
-    print("Baseline Metrics (majority class): " + baseline_metrics)
+    print("Baseline Metrics (majority class): " + str(baseline_metrics))
 
     # This code is for generating the bar plots of label frequency (see images file)
     # train_label_counts = Counter(example['label'] for example in dataset['train'])
