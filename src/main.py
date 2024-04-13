@@ -91,9 +91,9 @@ def get_baseline(test_df):
 # Tokenize for BERT and convert str labels to ints
 # input: batches of data from dataset
 # output: batch of encoded dataset info
-def preprocess(data):
-    labels = ClassLabel(names_file='../data/labels.txt')
-    tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+def preprocess(data, labels):
+    labels = ClassLabel(names_file=labels)
+    tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
     tok = tokenizer(data['text'], padding='max_length')
     tok["label"] = labels.str2int(data['label'])
     return tok
@@ -120,23 +120,25 @@ def compute_metrics(eval_pred):
 
 if __name__ == "__main__":
     bragging_data = '../data/bragging_data.csv'
-    train = '../data/train.csv'
-    test = '../data/test.csv'
+    labelfile = '../data/labels_binary.txt'
+    train = '../data/train_binary.csv'
+    test = '../data/test_binary.csv'
+    num = 2
 
-    batch_size = 8
-    learning_rate = .1
-    num_epochs = 20
+    batch_size = 10
+    learning_rate = .001
+    num_epochs = 1
 
     # uncomment this to split data from original bragging_data.csv
     # split_data(bragging_data, train, test)
 
-    dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(preprocess, batched=True)
-    model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=7).to("cuda")
+    dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(lambda example: preprocess(example, labelfile), batched=True)
+    model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num).to("cuda")
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
 
     baseline_metrics = get_baseline(pd.read_csv(test))
-    print("Baseline Metrics (majority class): " + baseline_metrics)
+    print("Baseline Metrics (majority class): " + str(baseline_metrics))
 
     # This code is for generating the bar plots of label frequency (see images file)
     # train_label_counts = Counter(example['label'] for example in dataset['train'])
@@ -175,5 +177,6 @@ if __name__ == "__main__":
     preds = compute_metrics(predictions)
     # metric = evaluate.load()
     print(preds)
+    print()
 
     pass
