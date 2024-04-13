@@ -13,11 +13,10 @@
 # to make that annoying big "oneDNN custom operations are on. You may see slightly different numerical results"
 # message that comes up at runtime go away
 import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 import pandas as pd
 import torch
-
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 import numpy as np
 import csv
@@ -88,11 +87,20 @@ def get_baseline(test_df):
     return {'Accuracy': accuracy, 'Precision': precision, 'Recall': recall}
 
 
-# Tokenize for BERT and convert str labels to ints
-# input: batches of data from dataset
-# output: batch of encoded dataset info
-def preprocess(data, labels):
-    labels = ClassLabel(names_file=labels)
+def preprocess(data):
+    """
+    Tokenize for BERT and convert str labels to ints
+
+    Input
+    -----------------------------
+    batches of data from dataset
+    
+    Output
+    -----------------------------
+    batch of encoded dataset info
+    """
+
+    labels = ClassLabel(names_file = 'data/labels.txt' if os.name == "nt" else "../data/labels.txt")
     tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
     tok = tokenizer(data['text'], padding='max_length')
     tok["label"] = labels.str2int(data['label'])
@@ -131,6 +139,7 @@ if __name__ == "__main__":
 
     # uncomment this to split data from original bragging_data.csv
     # split_data(bragging_data, train, test)
+
 
     dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(lambda example: preprocess(example, labelfile), batched=True)
     model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=num).to("cuda")
