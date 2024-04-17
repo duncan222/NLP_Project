@@ -111,7 +111,7 @@ def preprocess(data):
     batch of encoded dataset info
     """
 
-    labels = ClassLabel(names_file = 'data/labels.txt' if os.name == "nt" else "../data/labels.txt")
+    labels = ClassLabel(names_file = 'data/labels_binary.txt')
     tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
     tok = tokenizer(data['text'], padding='max_length')
     tok["label"] = labels.str2int(data['label'])
@@ -147,9 +147,12 @@ def compute_metrics(eval_pred):
 
 
 if __name__ == "__main__":
-    bragging_data = 'data/bragging_data.csv' if os.name == "nt" else "../data/bragging_data.csv"
-    train = 'data/train.csv' if os.name == "nt" else "../data/train.csv"
-    test = 'data/test.csv' if os.name == "nt" else "..data/test.csv"
+    modelType = "roberta-base"
+    # replace with "bert-base-cased" for BERT
+    # replace with "vinai/bertweet-base" for BERTweet
+    bragging_data = 'data/bragging_data.csv'
+    train = 'data/train_binary.csv'
+    test = 'data/test_binary.csv'
 
     batch_size = 10
     learning_rate = .001
@@ -159,7 +162,7 @@ if __name__ == "__main__":
     # split_data(bragging_data, train, test)
 
     dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(preprocess, batched=True)
-    model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=7).to("cuda")
+    model = AutoModelForSequenceClassification.from_pretrained(modelType, num_labels=7).to("cuda")
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
 
