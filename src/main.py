@@ -37,7 +37,7 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from sklearn.dummy import DummyClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
 from sklearn.utils import class_weight
 import time
 
@@ -115,9 +115,10 @@ def preprocess(data):
     """
 
     labels = ClassLabel(names_file = 'data/labels_multi.txt' if os.name == "nt" else "../data/labels_multi.txt")
+    # labels = ClassLabel(names_file = 'data/labels_binary.txt' if os.name == "nt" else "../data/labels_binary.txt")
     # tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
-    tokenizer = AutoTokenizer.from_pretrained('FacebookAI/roberta-base')
-    # tokenizer = AutoTokenizer.from_pretrained('vinai/bertweet-base')
+    # tokenizer = AutoTokenizer.from_pretrained('FacebookAI/roberta-base')
+    tokenizer = AutoTokenizer.from_pretrained('vinai/bertweet-base')
     tok = tokenizer(data['text'], padding='max_length')
     tok["label"] = labels.str2int(data['label'])
     return tok
@@ -172,8 +173,14 @@ class WeightedTrainer(Trainer):
 
 if __name__ == "__main__":
     bragging_data = 'data/bragging_data.csv' if os.name == "nt" else "../data/bragging_data.csv"
+
+    # for multiclass
     train = 'data/train_multi.csv' if os.name == "nt" else "../data/train_multi.csv"
     test = 'data/test_multi.csv' if os.name == "nt" else "..data/test_multi.csv"
+
+    # for binary class
+    # train = 'data/train_binary.csv' if os.name == "nt" else "../data/train_binary.csv"
+    # test = 'data/test_binary.csv' if os.name == "nt" else "..data/test_binary.csv"
 
     batch_size = 8
     learn_rate = .000003
@@ -184,8 +191,8 @@ if __name__ == "__main__":
 
     dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(preprocess, batched=True)
     # model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=7).to("cuda")
-    model = AutoModelForSequenceClassification.from_pretrained("FacebookAI/roberta-base", num_labels=7).to("cuda")
-    # model = AutoModelForSequenceClassification.from_pretrained("vinai/bertweet-base", num_labels=7).to("cuda")
+    # model = AutoModelForSequenceClassification.from_pretrained("FacebookAI/roberta-base", num_labels=7).to("cuda")
+    model = AutoModelForSequenceClassification.from_pretrained("vinai/bertweet-base", num_labels=7).to("cuda")
     optimizer = torch.optim.Adam(model.parameters(), lr=learn_rate)
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
 
@@ -238,4 +245,21 @@ if __name__ == "__main__":
     # metric = evaluate.load()
     print("\nFinal predictions: \n" + str(preds) + "\n")
 
+    pred_labels = np.argmax(predictions[0], axis=1)
+    conf_matrix = confusion_matrix(np.asarray([lbl["label"] for lbl in dataset["test"].select_columns("label").to_list()]), pred_labels)
+    print('conf_matrix ', conf_matrix)
+
+    fig, ax = plt.subplots(figsize=(7.5, 7.5))
+    ax.matshow(np.flip(conf_matrix), cmap=plt.cm.Blues, alpha=0.3)
+    for i in range(conf_matrix.shape[0]):
+        for j in range(conf_matrix.shape[1]):
+            ax.text(x=j, y=i, s=np.flip(conf_matrix)[i, j], va='center', ha='center', size="xx-large")
+
+    plt.xlabel('Predictions', fontsize=18, fontweight="bold")
+    plt.ylabel('Actuals', fontsize=18, fontweight="bold")
+    plt.title('Confusion Matrix', fontsize=18, fontweight="bold")
+    plt.xticks([0, 1, 2, 3, 4, 5, 6], ["Not", "Achievement", "Action", "Feeling", "Trait", "Possession", "Affiliation"], fontsize=11, fontweight="normal")
+    plt.yticks([0, 1, 2, 3, 4, 5, 6], ["Not", "Achievement", "Action", "Feeling", "Trait", "Possession", "Affiliation"], fontsize=11, fontweight="normal")
+    plt.show()
+    
     pass
