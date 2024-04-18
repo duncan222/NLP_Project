@@ -111,7 +111,7 @@ def preprocess(data):
     batch of encoded dataset info
     """
 
-    labels = ClassLabel(names_file = 'data/labels_binary.txt')
+    labels = ClassLabel(names_file = 'data/labels_multi.txt')
     tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
     tok = tokenizer(data['text'], padding='max_length')
     tok["label"] = labels.str2int(data['label'])
@@ -147,17 +147,17 @@ def compute_metrics(eval_pred):
 
 
 if __name__ == "__main__":
-    modelType = "roberta-base"
-    # replace with "bert-base-cased" for BERT
+    modelType = "bert-base-cased"
+    # replace with "roberta-base" for roberta
     # replace with "vinai/bertweet-base" for BERTweet
     bragging_data = 'data/bragging_data.csv'
-    train = 'data/train_binary.csv'
-    test = 'data/test_binary.csv'
-    num_labels = 2
+    train = 'data/train_multi.csv'
+    test = 'data/test_multi.csv'
+    num_labels = 7
 
     batch_size = 8
-    learning_rate = .001
-    num_epochs = 20
+    learning_rate = .000003
+    num_epochs = 40
 
     # uncomment this to split data from original bragging_data.csv
     # split_data(bragging_data, train, test)
