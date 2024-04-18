@@ -14,6 +14,7 @@
 # message that comes up at runtime go away
 import os
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
 import pandas as pd
 import torch
@@ -114,7 +115,9 @@ def preprocess(data):
     """
 
     labels = ClassLabel(names_file = 'data/labels_multi.txt' if os.name == "nt" else "../data/labels_multi.txt")
-    tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+    # tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+    tokenizer = AutoTokenizer.from_pretrained('FacebookAI/roberta-base')
+    # tokenizer = AutoTokenizer.from_pretrained('vinai/bertweet-base')
     tok = tokenizer(data['text'], padding='max_length')
     tok["label"] = labels.str2int(data['label'])
     return tok
@@ -172,7 +175,7 @@ if __name__ == "__main__":
     train = 'data/train_multi.csv' if os.name == "nt" else "../data/train_multi.csv"
     test = 'data/test_multi.csv' if os.name == "nt" else "..data/test_multi.csv"
 
-    batch_size = 16
+    batch_size = 8
     learn_rate = .000003
     num_epochs = 40
 
@@ -180,7 +183,9 @@ if __name__ == "__main__":
     # split_data(bragging_data, train, test)
 
     dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(preprocess, batched=True)
-    model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=7).to("cuda")
+    # model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=7).to("cuda")
+    model = AutoModelForSequenceClassification.from_pretrained("FacebookAI/roberta-base", num_labels=7).to("cuda")
+    # model = AutoModelForSequenceClassification.from_pretrained("vinai/bertweet-base", num_labels=7).to("cuda")
     optimizer = torch.optim.Adam(model.parameters(), lr=learn_rate)
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
 
@@ -210,7 +215,7 @@ if __name__ == "__main__":
         gradient_accumulation_steps=12, 
         do_train=True,
         num_train_epochs=num_epochs, 
-        learning_rate=learn_rate,
+        # learning_rate=learn_rate,
         # eval_delay=1.0,
     )
     
@@ -219,7 +224,7 @@ if __name__ == "__main__":
         args=training_args,
         train_dataset=dataset["train"],
         eval_dataset=dataset["test"],
-        compute_metrics=compute_metrics,
+        # compute_metrics=compute_metrics,
         optimizers=(optimizer, scheduler),
     )
     class_weights = Tensor(class_weight.compute_class_weight('balanced', classes=np.asarray(dataset["train"].select_columns("label").unique("label")), y=np.asarray([lbl["label"] for lbl in dataset["train"].select_columns("label").to_list()]))).to("cuda")
