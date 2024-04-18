@@ -153,8 +153,9 @@ if __name__ == "__main__":
     bragging_data = 'data/bragging_data.csv'
     train = 'data/train_binary.csv'
     test = 'data/test_binary.csv'
+    num_labels = 2
 
-    batch_size = 10
+    batch_size = 8
     learning_rate = .001
     num_epochs = 20
 
@@ -162,7 +163,7 @@ if __name__ == "__main__":
     # split_data(bragging_data, train, test)
 
     dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(preprocess, batched=True)
-    model = AutoModelForSequenceClassification.from_pretrained(modelType, num_labels=7).to("cuda")
+    model = AutoModelForSequenceClassification.from_pretrained(modelType, num_labels=num_labels).to("cuda")
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
 
@@ -188,7 +189,10 @@ if __name__ == "__main__":
         evaluation_strategy="epoch", 
         per_device_train_batch_size=batch_size, 
         fp16=True, 
-        gradient_accumulation_steps=12
+        gradient_accumulation_steps=12,
+        do_train=True,
+        num_train_epochs=30,
+        learning_rate=.001
     )
     
     trainer = Trainer(
