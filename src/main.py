@@ -17,7 +17,8 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 import pandas as pd
 import torch
-
+from torch import nn
+from torch import Tensor
 import numpy as np
 import csv
 import evaluate
@@ -36,6 +37,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from sklearn.dummy import DummyClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.utils import class_weight
 import time
 
 tf.get_logger().setLevel('ERROR')
@@ -111,7 +113,7 @@ def preprocess(data):
     batch of encoded dataset info
     """
 
-    labels = ClassLabel(names_file = 'data/labels.txt' if os.name == "nt" else "../data/labels.txt")
+    labels = ClassLabel(names_file = 'data/labels_multi.txt' if os.name == "nt" else "../data/labels_multi.txt")
     tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
     tok = tokenizer(data['text'], padding='max_length')
     tok["label"] = labels.str2int(data['label'])
@@ -146,21 +148,40 @@ def compute_metrics(eval_pred):
                                                                                   average="macro")
 
 
+# def compute_loss(self, model, inputs, return_outputs=False): 
+    
+
+
+class WeightedTrainer(Trainer): 
+    def compute_loss(self, model, inputs, return_outputs=False): 
+        """
+        To override the default compute_loss to implement class weights
+        """
+        labels = inputs.get("labels")
+        outputs = model(**inputs)
+        logits = outputs.get("logits")
+
+        # loss_func = nn.CrossEntropyLoss(weight=torch.Tensor(class_weight.compute_class_weight("balanced", classes=np.unique(Tensor.cpu(labels)), y=labels)))
+        loss_func = nn.CrossEntropyLoss(weight=class_weights)
+        loss = loss_func(logits.view(-1, self.model.config.num_labels), labels.view(-1))
+        return (loss, outputs) if return_outputs else loss
+
+
 if __name__ == "__main__":
     bragging_data = 'data/bragging_data.csv' if os.name == "nt" else "../data/bragging_data.csv"
-    train = 'data/train.csv' if os.name == "nt" else "../data/train.csv"
-    test = 'data/test.csv' if os.name == "nt" else "..data/test.csv"
+    train = 'data/train_multi.csv' if os.name == "nt" else "../data/train_multi.csv"
+    test = 'data/test_multi.csv' if os.name == "nt" else "..data/test_multi.csv"
 
-    batch_size = 10
-    learning_rate = .001
-    num_epochs = 20
+    batch_size = 16
+    learn_rate = .000003
+    num_epochs = 40
 
     # uncomment this to split data from original bragging_data.csv
     # split_data(bragging_data, train, test)
 
     dataset = load_dataset("csv", data_files={"train": [train], "test": [test]}).map(preprocess, batched=True)
     model = AutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=7).to("cuda")
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learn_rate)
     scheduler = CosineAnnealingLR(optimizer, T_max=num_epochs)
 
     baseline_metrics = get_baseline(pd.read_csv(test))
@@ -184,22 +205,28 @@ if __name__ == "__main__":
         output_dir="test_trainer", 
         evaluation_strategy="epoch", 
         per_device_train_batch_size=batch_size, 
+        per_device_eval_batch_size=batch_size,
         fp16=True, 
-        gradient_accumulation_steps=12
+        gradient_accumulation_steps=12, 
+        do_train=True,
+        num_train_epochs=num_epochs, 
+        learning_rate=learn_rate,
+        # eval_delay=1.0,
     )
     
-    trainer = Trainer(
+    trainer = WeightedTrainer(
         model=model,
         args=training_args,
         train_dataset=dataset["train"],
         eval_dataset=dataset["test"],
         compute_metrics=compute_metrics,
-        optimizers=(optimizer, scheduler)
+        optimizers=(optimizer, scheduler),
     )
-
+    class_weights = Tensor(class_weight.compute_class_weight('balanced', classes=np.asarray(dataset["train"].select_columns("label").unique("label")), y=np.asarray([lbl["label"] for lbl in dataset["train"].select_columns("label").to_list()]))).to("cuda")
+    
     print("\n====================== TRAINING ======================\n")
     trainer.train()
-    
+
     print("\n===================== PREDICTING =====================\n")
     predictions = trainer.predict(dataset["test"])
     preds = compute_metrics(predictions)
